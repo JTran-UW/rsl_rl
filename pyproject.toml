@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rsl-rl-lib"
-version = "3.1.2"
+version = "5.3.0"
 keywords = ["reinforcement-learning", "robotics"]
 maintainers = [
   { name="Clemens Schwarke", email="cschwarke@ethz.ch" },
@@ -31,6 +31,7 @@ dependencies = [
     "numpy>=1.16.4",
     "GitPython",
     "onnx",
+    "onnxscript>=0.5.4",
 ]
 
 [project.urls]
@@ -41,8 +42,11 @@ Issues = "https://github.com/leggedrobotics/rsl_rl/issues"
 where = ["."]
 include = ["rsl_rl*"]
 
-[tool.setuptools.package-data]
-"rsl_rl" = ["config/*", "licenses/*"]
+[tool.setuptools]
+license-files = [
+    "LICENSE*",
+    "licenses/dependencies/*.txt",
+]
 
 [tool.pyright]
 include = ["rsl_rl"]
@@ -55,5 +59,5 @@ reportMissingImports = "none"
 # This is required to ignore type checks of modules with stubs missing.
 reportMissingModuleSource = "none"  # -> most common: prettytable in mdp managers
 reportGeneralTypeIssues = "none"  # -> usage of literal MISSING in dataclasses
-reportOptionalMemberAccess = "warning"
+reportOptionalMemberAccess = "none"
 reportPrivateUsage = "warning"

@@ -30,6 +30,7 @@ Please keep the lists sorted alphabetically.
 ## Contributors
 
 * Bikram Pandit
+* Emilio Palma
 * Eric Vollenweider
 * Fabian Jenelten
 * Lorenzo Terenzi
@@ -37,5 +38,6 @@ Please keep the lists sorted alphabetically.
 * Matthijs van der Boon
 * Özhan Özen
 * Pascal Roth
+* Shaoshu Su
 * Zhang Chong
 * Ziqi Fan

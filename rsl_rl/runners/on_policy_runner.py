@@ -329,7 +329,64 @@ class OnPolicyRunner:
         self.eval_mode()  # Switch to evaluation mode (e.g. for dropout)
         if device is not None:
             self.alg.policy.to(device)
-        return self.alg.policy.act_inference
+        policy_obs_keys = self.cfg["obs_groups"]["policy"]
+        policy_module = self.alg.policy
+
+        def policy_fn(actor_obs) -> torch.Tensor:
+            if isinstance(actor_obs, TensorDict):
+                obs_td = actor_obs
+            else:
+                obs_td = TensorDict(
+                    {key: actor_obs for key in policy_obs_keys},
+                    batch_size=actor_obs.shape[:1],
+                    device=actor_obs.device,
+                )
+            return policy_module.act_inference(obs_td)
+
+        return policy_fn
+    
+    def get_inference_critic(self, device: str | None = None) -> callable:
+        self.eval_mode()  # Switch to evaluation mode (e.g. for dropout)
+        if device is not None:
+            self.alg.policy.to(device)
+        critic_obs_keys = self.cfg["obs_groups"]["critic"]
+        policy_module = self.alg.policy
+
+        def critic_fn(critic_obs: torch.Tensor) -> torch.Tensor:
+            obs_td = TensorDict(
+                {key: critic_obs for key in critic_obs_keys},
+                batch_size=critic_obs.shape[:1],
+                device=critic_obs.device,
+            )
+            return policy_module.evaluate(obs_td).squeeze(-1)
+
+        return critic_fn
+
+    def get_distribution_fn(self, device: str | None = None) -> callable:
+        """Return a callable (obs: Tensor) -> (mean: Tensor, std: Tensor) from the expert pre-squash Gaussian."""
+        self.eval_mode()
+        if device is not None:
+            self.alg.policy.to(device)
+        policy_obs_keys = self.cfg["obs_groups"]["policy"]
+        policy_module = self.alg.policy
+
+        def distribution_fn(obs: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+            obs_td = TensorDict(
+                {key: obs for key in policy_obs_keys},
+                batch_size=obs.shape[:1],
+                device=obs.device,
+            )
+            with torch.no_grad():
+                policy_module.act(obs_td)  # updates policy_module.distribution as a side effect
+            return policy_module.distribution.mean.clone(), policy_module.distribution.stddev.clone()
+
+        return distribution_fn
+
+    def get_inference_policy_sample(self, device: str | None = None) -> callable:
+        self.eval_mode()  # Switch to evaluation mode (e.g. for dropout)
+        if device is not None:
+            self.alg.policy.to(device)
+        return self.alg.policy.act
 
     def train_mode(self) -> None:
         # PPO

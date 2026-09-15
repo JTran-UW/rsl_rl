@@ -112,9 +112,9 @@ class MLPEncoderModel(MLPModel):
         # passthrough normalization flag. When disabled, use Identity so ``get_latent`` need not branch.
         self.encoder_normalization = encoder_normalization
         if encoder_normalization:
-            self.encoder_normalizers = nn.ModuleDict(
-                {g: EmpiricalNormalization(self.obs_dims_encoded[i]) for i, g in enumerate(self.obs_groups_encoded)}
-            )
+            self.encoder_normalizers = nn.ModuleDict({
+                g: EmpiricalNormalization(self.obs_dims_encoded[i]) for i, g in enumerate(self.obs_groups_encoded)
+            })
         else:
             self.encoder_normalizers = nn.ModuleDict({g: nn.Identity() for g in self.obs_groups_encoded})
 
@@ -272,12 +272,10 @@ class _NormalizedEncoder(nn.Module):
 
 
 def _build_encoder_blocks(model: MLPEncoderModel) -> nn.ModuleList:
-    return nn.ModuleList(
-        [
-            _NormalizedEncoder(copy.deepcopy(model.encoder_normalizers[g]), copy.deepcopy(model.encoders[g]))
-            for g in model.obs_groups_encoded
-        ]
-    )
+    return nn.ModuleList([
+        _NormalizedEncoder(copy.deepcopy(model.encoder_normalizers[g]), copy.deepcopy(model.encoders[g]))
+        for g in model.obs_groups_encoded
+    ])
 
 
 class _TorchMLPEncoderModel(nn.Module):

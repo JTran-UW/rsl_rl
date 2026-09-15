@@ -61,3 +61,6 @@ reportMissingModuleSource = "none"  # -> most common: prettytable in mdp manager
 reportGeneralTypeIssues = "none"  # -> usage of literal MISSING in dataclasses
 reportOptionalMemberAccess = "none"
 reportPrivateUsage = "warning"
+
+[tool.codespell]
+ignore-words-list = "deques"

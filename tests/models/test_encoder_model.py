@@ -8,9 +8,10 @@
 from __future__ import annotations
 
 import io
-import pytest
 import torch
 from tensordict import TensorDict
+
+import pytest
 
 from rsl_rl.models import MLPEncoderModel
 from rsl_rl.modules import EmpiricalNormalization
@@ -54,7 +55,8 @@ def _make_model(**kwargs: object) -> tuple[MLPEncoderModel, TensorDict]:
     return model, obs
 
 
-def test_partition_into_passthrough_and_encoded():
+def test_partition_into_passthrough_and_encoded() -> None:
+    """Partition into passthrough and encoded."""
     model, _ = _make_model()
     # Parent stores passthrough subset in obs_groups; encoded subset in obs_groups_encoded.
     assert model.obs_groups == ["policy", "task"]
@@ -68,13 +70,14 @@ def test_partition_into_passthrough_and_encoded():
     assert first_linear.in_features == model._get_latent_dim()
 
 
-def test_forward_shape():
+def test_forward_shape() -> None:
+    """Forward shape."""
     model, obs = _make_model()
     out = model(obs)
     assert out.shape == (NUM_ENVS, NUM_ACTIONS)
 
 
-def test_get_latent_uses_encoder():
+def test_get_latent_uses_encoder() -> None:
     """Mutating the height_scan column must propagate into the latent (encoder is wired in)."""
     model, obs = _make_model()
     model.eval()
@@ -85,7 +88,8 @@ def test_get_latent_uses_encoder():
     assert not torch.allclose(base, perturbed)
 
 
-def test_passthrough_normalization_only_covers_passthrough_dim():
+def test_passthrough_normalization_only_covers_passthrough_dim() -> None:
+    """Passthrough normalization only covers passthrough dim."""
     model, _ = _make_model(obs_normalization=True)
     assert isinstance(model.obs_normalizer, EmpiricalNormalization)
     assert tuple(model.obs_normalizer._mean.shape) == (1, POLICY_DIM + TASK_DIM)
@@ -93,14 +97,16 @@ def test_passthrough_normalization_only_covers_passthrough_dim():
     assert isinstance(model.encoder_normalizers["height_scan"], torch.nn.Identity)
 
 
-def test_encoder_normalization_creates_per_group_normalizer():
+def test_encoder_normalization_creates_per_group_normalizer() -> None:
+    """Encoder normalization creates per group normalizer."""
     model, _ = _make_model(encoder_normalization=True)
     norm = model.encoder_normalizers["height_scan"]
     assert isinstance(norm, EmpiricalNormalization)
     assert tuple(norm._mean.shape) == (1, HEIGHT_DIM)
 
 
-def test_update_normalization_advances_passthrough_and_encoder_counts():
+def test_update_normalization_advances_passthrough_and_encoder_counts() -> None:
+    """Update normalization advances passthrough and encoder counts."""
     model, obs = _make_model(obs_normalization=True, encoder_normalization=True)
     assert int(model.obs_normalizer.count) == 0
     assert int(model.encoder_normalizers["height_scan"].count) == 0
@@ -109,14 +115,16 @@ def test_update_normalization_advances_passthrough_and_encoder_counts():
     assert int(model.encoder_normalizers["height_scan"].count) == NUM_ENVS
 
 
-def test_head_norm_present_by_default_and_disabled_when_off():
+def test_head_norm_present_by_default_and_disabled_when_off() -> None:
+    """Head norm present by default and disabled when off."""
     model, _ = _make_model()
     assert isinstance(model.head_norm, torch.nn.LayerNorm)
     model_off, _ = _make_model(head_layer_norm=False)
     assert isinstance(model_off.head_norm, torch.nn.Identity)
 
 
-def test_state_dict_round_trip_preserves_forward():
+def test_state_dict_round_trip_preserves_forward() -> None:
+    """State dict round trip preserves forward."""
     model, obs = _make_model(obs_normalization=True)
     model.eval()
     model.update_normalization(obs)
@@ -134,7 +142,8 @@ def test_state_dict_round_trip_preserves_forward():
     assert torch.allclose(actual, expected, atol=1e-6)
 
 
-def test_get_encoder_latents_returns_per_group_dict():
+def test_get_encoder_latents_returns_per_group_dict() -> None:
+    """Get encoder latents returns per group dict."""
     model, obs = _make_model()
     model.eval()
     latents = model.get_encoder_latents(obs)
@@ -142,7 +151,7 @@ def test_get_encoder_latents_returns_per_group_dict():
     assert latents["height_scan"].shape == (NUM_ENVS, 8)
 
 
-def test_get_encoder_latents_uses_normalizer_state():
+def test_get_encoder_latents_uses_normalizer_state() -> None:
     """Updating the encoder normalizer should change the encoder latent output."""
     model, obs = _make_model(encoder_normalization=True)
     # EmpiricalNormalization.update is gated on training mode; do updates first, then eval.
@@ -168,7 +177,8 @@ def _split_obs_for_export(model: MLPEncoderModel, obs: TensorDict) -> tuple[torc
     return passthrough, encoded
 
 
-def test_jit_export_matches_eager():
+def test_jit_export_matches_eager() -> None:
+    """Jit export matches eager."""
     model, obs = _make_model(obs_normalization=True)
     model.eval()
     expected = model(obs)
@@ -179,7 +189,8 @@ def test_jit_export_matches_eager():
     assert torch.allclose(actual, expected, atol=1e-6)
 
 
-def test_jit_module_is_scriptable():
+def test_jit_module_is_scriptable() -> None:
+    """Jit module is scriptable."""
     model, obs = _make_model(obs_normalization=True)
     model.eval()
     jit_module = model.as_jit()
@@ -190,7 +201,8 @@ def test_jit_module_is_scriptable():
     assert torch.allclose(actual, expected, atol=1e-6)
 
 
-def test_onnx_wrapper_dummy_inputs_and_names():
+def test_onnx_wrapper_dummy_inputs_and_names() -> None:
+    """Onnx wrapper dummy inputs and names."""
     model, _ = _make_model()
     onnx_module = model.as_onnx(verbose=False)
     dummies = onnx_module.get_dummy_inputs()
@@ -201,7 +213,8 @@ def test_onnx_wrapper_dummy_inputs_and_names():
     assert onnx_module.output_names == ["actions"]
 
 
-def test_onnx_forward_matches_eager():
+def test_onnx_forward_matches_eager() -> None:
+    """Onnx forward matches eager."""
     model, obs = _make_model(obs_normalization=True)
     model.eval()
     expected = model(obs)
@@ -211,19 +224,22 @@ def test_onnx_forward_matches_eager():
     assert torch.allclose(actual, expected, atol=1e-6)
 
 
-def test_missing_encoder_cfg_raises():
+def test_missing_encoder_cfg_raises() -> None:
+    """Missing encoder cfg raises."""
     obs = _make_obs()
     with pytest.raises(ValueError, match="encoder_cfg"):
         MLPEncoderModel(obs, OBS_GROUPS, "actor", output_dim=NUM_ACTIONS, encoder_cfg=None)
 
 
-def test_no_encoded_groups_raises():
+def test_no_encoded_groups_raises() -> None:
+    """No encoded groups raises."""
     obs = _make_obs()
     with pytest.raises(ValueError, match="No observation groups"):
         MLPEncoderModel(obs, OBS_GROUPS, "actor", output_dim=NUM_ACTIONS, hidden_dims=[16], encoder_cfg={})
 
 
-def test_encoder_cfg_for_absent_group_raises():
+def test_encoder_cfg_for_absent_group_raises() -> None:
+    """Encoder cfg for absent group raises."""
     obs = _make_obs()
     with pytest.raises(ValueError, match="not present in the active"):
         MLPEncoderModel(
@@ -236,7 +252,7 @@ def test_encoder_cfg_for_absent_group_raises():
         )
 
 
-def test_multidim_obs_flattened_into_encoder():
+def test_multidim_obs_flattened_into_encoder() -> None:
     """A (B, 1, 4, 4) heightmap should be flattened to (B, 16) before the encoder MLP."""
     obs = TensorDict(
         {

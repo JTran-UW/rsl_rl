@@ -10,6 +10,11 @@ import os
 import pathlib
 from dataclasses import asdict
 from torch.utils.tensorboard import SummaryWriter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import numpy as np
+    import torch
 
 try:
     import wandb
@@ -91,7 +96,7 @@ class WandbSummaryWriter(SummaryWriter):
     def add_image(
         self,
         tag: str,
-        img_tensor,
+        img_tensor: torch.Tensor | np.ndarray,
         global_step: int | None = None,
         walltime: float | None = None,
         dataformats: str = "CHW",

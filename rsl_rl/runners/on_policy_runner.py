@@ -55,6 +55,18 @@ class OnPolicyRunner:
         self.current_learning_iteration = 0
         self._resumed = False
 
+    def _maybe_reset_sde_noise(self, step: int) -> None:
+        """Re-sample the gSDE exploration matrix at rollout start and every ``sde_sample_freq`` env-steps.
+
+        No-op for algorithms without gSDE support (e.g. :class:`~rsl_rl.algorithms.Distillation`).
+        """
+        reset_sde_noise = getattr(self.alg, "reset_sde_noise", None)
+        if reset_sde_noise is None:
+            return
+        sde_sample_freq = getattr(self.alg, "sde_sample_freq", -1)
+        if step == 0 or (sde_sample_freq > 0 and step % sde_sample_freq == 0):
+            reset_sde_noise(self.env.num_envs)
+
     def learn(self, num_learning_iterations: int, init_at_random_ep_len: bool = False) -> None:
         """Run the learning loop for the specified number of iterations."""
         # Randomize initial episode lengths (for exploration)
@@ -87,12 +99,8 @@ class OnPolicyRunner:
             start = time.time()
             # Rollout
             with torch.inference_mode():
-                # gSDE: re-sample the exploration matrix at the start of every rollout. No-op for non-gSDE actors.
-                self.alg.reset_sde_noise(self.env.num_envs)
                 for step in range(self.cfg["num_steps_per_env"]):
-                    # gSDE: re-sample the exploration matrix every sde_sample_freq env-steps within the rollout.
-                    if self.alg.sde_sample_freq > 0 and step > 0 and step % self.alg.sde_sample_freq == 0:
-                        self.alg.reset_sde_noise(self.env.num_envs)
+                    self._maybe_reset_sde_noise(step)
                     # Sample actions
                     actions = self.alg.act(obs)
                     # Step the environment
@@ -203,10 +211,8 @@ class OnPolicyRunner:
         num_steps = self.cfg["num_steps_per_env"]
         for w in range(num_iters):
             with torch.inference_mode():
-                self.alg.reset_sde_noise(self.env.num_envs)
                 for step in range(num_steps):
-                    if self.alg.sde_sample_freq > 0 and step > 0 and step % self.alg.sde_sample_freq == 0:
-                        self.alg.reset_sde_noise(self.env.num_envs)
+                    self._maybe_reset_sde_noise(step)
                     actions = self.alg.act(obs)
                     obs, rewards, dones, extras = self.env.step(actions.to(self.env.device))
                     if self.cfg.get("check_for_nan", True):

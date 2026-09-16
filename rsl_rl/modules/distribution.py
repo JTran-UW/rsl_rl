@@ -619,7 +619,14 @@ class GSDEGaussianDistribution(Distribution):
         self._distribution = Normal(mlp_output, marginal_std)
 
     def _get_noise(self, latent_sde: torch.Tensor) -> torch.Tensor:
-        r"""Return :math:`\phi(s) \cdot \varepsilon`, using per-env :math:`\varepsilon` when shapes match."""
+        r"""Return :math:`\phi(s) \cdot \varepsilon`, using per-env :math:`\varepsilon` when shapes match.
+
+        The exploration tensors are drawn under ``torch.inference_mode()`` during rollouts. They are
+        detached and cloned here so that a ``sample()`` taken while autograd is active (the PPO
+        update forwards with ``stochastic_output=True``) never saves an inference tensor for
+        backward, which raises when ``learn_features=True`` keeps ``latent_sde`` differentiable.
+        Noise carries no gradient in either case.
+        """
         if self.exploration_matrix is None:
             raise RuntimeError(
                 "GSDEGaussianDistribution.sample_weights must be called before sampling. "
@@ -633,8 +640,8 @@ class GSDEGaussianDistribution(Distribution):
             # Fallback to the shared single-matrix path (used when the batch size doesn't
             # match the per-env stack, e.g. during PPO update over shuffled minibatches —
             # the sample() return value is discarded there, only the marginal log_prob is used).
-            return torch.mm(latent_sde, self.exploration_matrix)
-        return torch.bmm(latent_sde.unsqueeze(1), self.exploration_matrices).squeeze(1)
+            return torch.mm(latent_sde, self.exploration_matrix.detach().clone())
+        return torch.bmm(latent_sde.unsqueeze(1), self.exploration_matrices.detach().clone()).squeeze(1)
 
     def sample(self) -> torch.Tensor:
         r"""Sample :math:`a = \mu(s) + \phi(s) \cdot \varepsilon` with the current fixed :math:`\varepsilon`."""

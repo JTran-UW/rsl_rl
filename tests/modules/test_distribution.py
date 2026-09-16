@@ -9,6 +9,8 @@ import math
 import numpy as np
 import torch
 
+import pytest
+
 from rsl_rl.modules import MLP
 from rsl_rl.modules.distribution import (
     BetaDistribution,
@@ -260,6 +262,13 @@ class TestHeteroscedasticGaussianDistribution:
 
 class TestBetaDistribution:
     """Tests for ``BetaDistribution``."""
+
+    def test_rejects_degenerate_action_range(self) -> None:
+        """Equal or reversed bounds must be rejected at construction."""
+        with pytest.raises(ValueError):
+            BetaDistribution(output_dim=2, action_range=(1.0, 1.0))
+        with pytest.raises(ValueError):
+            BetaDistribution(output_dim=2, action_range=(1.0, -1.0))
 
     def test_alpha_beta_greater_than_one(self) -> None:
         """After update(), alpha and beta should both be strictly greater than 1."""

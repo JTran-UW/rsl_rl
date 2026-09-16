@@ -356,6 +356,8 @@ class BetaDistribution(Distribution):
         """
         super().__init__(output_dim)
 
+        if action_range[1] <= action_range[0]:
+            raise ValueError(f"action_range upper bound must be greater than lower bound, got {action_range}.")
         # Compute scaling and offset for rescaling samples
         self.action_range = action_range
         self._range_scale = action_range[1] - action_range[0]

@@ -451,10 +451,19 @@ class PPO:
         """Broadcast model parameters to all GPUs."""
         # Obtain the model parameters on current GPU
         model_params = [self._raw_actor.state_dict(), self._raw_critic.state_dict()]
+        # Broadcast policy parameters
+        # Broadcast RND parameters if they exist
         if self.rnd:
             model_params.append(self.rnd.predictor.state_dict())
         # Broadcast the model parameters
-        torch.distributed.broadcast_object_list(model_params, src=0)
+        for state in model_params:
+            for name, value in state.items():
+                if isinstance(value, torch.Tensor):
+                    torch.distributed.broadcast(value, src=0)
+                else:
+                    extra_state = [value]
+                    torch.distributed.broadcast_object_list(extra_state, src=0)
+                    state[name] = extra_state[0]
         # Load the model parameters on all GPUs from source GPU
         self._raw_actor.load_state_dict(model_params[0])
         self._raw_critic.load_state_dict(model_params[1])

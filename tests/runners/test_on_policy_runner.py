@@ -11,6 +11,9 @@ import copy
 import tempfile
 import torch
 from tensordict import TensorDict
+from typing import NoReturn
+
+import pytest
 
 from rsl_rl.env import VecEnv
 from rsl_rl.runners import OnPolicyRunner
@@ -20,6 +23,26 @@ OBS_DIM = 8
 NUM_ACTIONS = 4
 MAX_EP_LEN = 50
 IMG_C, IMG_H, IMG_W = 1, 16, 16
+
+
+def test_reuse_initialized_distributed_group(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Respect a process group already initialized by the environment launcher."""
+    runner = OnPolicyRunner.__new__(OnPolicyRunner)
+    runner.device = "cuda:1"
+    runner.cfg = {}
+    for name, value in (("WORLD_SIZE", "2"), ("LOCAL_RANK", "1"), ("RANK", "1")):
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(torch.distributed, "is_initialized", lambda: True)
+    devices = []
+
+    def reject_initialization(*args: object, **kwargs: object) -> NoReturn:
+        raise AssertionError("Existing process group must not be initialized again")
+
+    monkeypatch.setattr(torch.distributed, "init_process_group", reject_initialization)
+    monkeypatch.setattr(torch.cuda, "set_device", devices.append)
+    runner._configure_multi_gpu()
+    assert devices == [1]
+    assert runner.is_distributed and runner.gpu_world_size == 2
 
 
 class DummyEnv(VecEnv):

@@ -21,6 +21,16 @@ RSL-RL is currently used by the following robot learning libraries:
 - [mjlab](https://github.com/mujocolab/mjlab) (built on top of MuJoCo Warp)
 - [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground) (built on top of MuJoCo MJX and Warp)
 
+## UW-Lab integration
+
+This integration targets the upgraded UWLab workflow on Isaac Sim 6.1 and the upstream RSL-RL 5.4.1
+API with separate actor and critic models. RSL-RL itself remains simulator-independent.
+The old combined `ActorCritic` interface is not restored. Keep old callers on the pinned 3.x stack;
+use the upgraded UWLab checkpoint-layout conversion and 5.x model/export interfaces for this stack.
+
+Distributed PPO retains tensor broadcasts including normalization buffers and optional RND state.
+An existing distributed process group is reused rather than initialized twice.
+
 ## Installation
 
 Before installing RSL-RL, ensure that Python `3.9+` is available. It is recommended to install the library in a virtual
